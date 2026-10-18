@@ -1,6 +1,6 @@
 {
   "name": "featbit-mongo-to-pg",
-  "version": "1.0.0",
+  "version": "5.2.0",
   "description": "A NodeJS script to migrate data from MongoDb to PostgreSQL for **FeatBit v5.2.0**",
   "main": "index.js",
   "scripts": {
