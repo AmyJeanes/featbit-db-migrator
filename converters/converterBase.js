@@ -61,7 +61,7 @@ export class ConverterBase {
 
         // Handle strings - escape quotes and wrap if contains delimiter, newline, or quote
         const strValue = String(value);
-        if (strValue.includes(this.DELIMITER) || strValue.includes('\n') || strValue.includes('"')) {
+        if (strValue.includes(this.DELIMITER) || strValue.includes('\n') || strValue.includes('\r') || strValue.includes('"')) {
             return `"${strValue.replace(/"/g, '""')}"`;
         }
 
@@ -69,32 +69,10 @@ export class ConverterBase {
     }
 
     toStringArrayValue(value) {
-        if (Array.isArray(value)) {
-            const escapedValues = [];
-
-            for (const v of value) {
-                if (v === null || v === undefined) {
-                    escapedValues.push('');
-                    continue
-                }
-
-                if (v === '') {
-                    escapedValues.push('""');
-                    continue
-                }
-
-                // Convert to string and escape double quotes by doubling them
-                const escaped = String(v)
-                  .replace(/,/g, '\\,')
-                  .replace(/"/g, '""');
-
-                // Always quote elements to handle special characters (commas, braces, whitespace)
-                escapedValues.push(`"${escaped}"`);
-            }
-
-            return `"{${escapedValues.join(',')}}"`;
-        } else {
-            return '"{}"';
-        }
+        if (value === null || value === undefined) return this.toStringValue('{}');
+        if (!Array.isArray(value)) throw new Error('Expected a PostgreSQL array');
+        const elements = value.map(v => v === null ? 'NULL' :
+            '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"');
+        return this.toStringValue('{' + elements.join(',') + '}');
     }
 }

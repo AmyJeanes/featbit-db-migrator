@@ -11,7 +11,9 @@ export class RelayProxyConverter extends ConverterBase {
 
         if (col === 'agents' || col === 'auto_agents') {
           // replace _id with id in agents and auto_agents arrays
-          value = value.map(agent => {
+          if (value == null) return this.toStringValue(value);
+          value = value.map(original => {
+            const agent = {...original};
             if (agent._id) {
               agent.id = agent._id.toString();
               delete agent._id;

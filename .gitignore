@@ -142,3 +142,7 @@ vite.config.ts.timestamp-*
 csvs
 scripts-to-run.sql
 .idea
+
+exports/
+
+.cache/

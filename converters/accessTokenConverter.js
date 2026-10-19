@@ -11,6 +11,7 @@ export class AccessTokenConverter extends ConverterBase {
 
         if (col === 'permissions') {
           // for each permission, replace _id with id
+          if (value == null) return this.toStringValue(value);
           value = value.map(permission => {
             const newPermission = {...permission};
             if (newPermission._id) {

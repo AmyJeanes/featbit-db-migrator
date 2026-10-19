@@ -1,93 +1,106 @@
-## Overview
+# FeatBit 5.4.10 MongoDB → PostgreSQL Migrator
 
-A Node.js utility to migrate data from MongoDB to PostgreSQL for **FeatBit v5.2.0**.
+A Node.js utility for migrating an **already-upgraded FeatBit 5.4.10 MongoDB database into an empty PostgreSQL database**. For FeatBit 5.2.0, use the [v5.2.0 release](https://github.com/featbit/featbit-db-migrator/releases/tag/v5.2.0).
 
-> [!CAUTION]
-> Please do test migration with an empty PostgreSQL database first and always review the SQL scripts before executing them against production.
+The export preserves IDs, password hashes, workspace memberships, policy/segment keys, environment settings and usage summaries. It does not upgrade old FeatBit data or synchronize an existing PostgreSQL deployment. Populated targets are rejected.
+
+## Scope
+
+29 collections are migrated. See the [complete field mapping and version differences](docs/mapping-5.4.10.md).
+
+Excluded:
+
+- `EndUsers`: end-user records. `EndUserProperties` metadata is included.
+- `Events`: raw events and analytics history; assess analytics storage separately.
+- `RefreshTokens`: users must log in again after cutover. Existing JWT validity also depends on signing keys and expiry.
+- `QueueMessages`: transient work; drain pending processing before the final snapshot.
+
+If these exclusions do not meet the customer's requirements, resolve their separate migration plan before cutover.
 
 ## Prerequisites
 
-- Access to your FeatBit MongoDB database
-- Access to your target PostgreSQL database
-- FeatBit deployment **upgraded to v5.2.0 before migration**
+- Node.js >= 20.19.0 and `npm`.
+- Git, `psql`, PostgreSQL 15 (integration-tested), and permission to create the database and `pg_trgm` extension.
+- A consistent MongoDB backup/snapshot whose FeatBit upgrades through 5.4.10 have completed, including the 5.4.0 user/workspace migration.
+- A fresh PostgreSQL instance/database with no default FeatBit account or seeded business data.
 
-## Setup
+## 1. Initialize PostgreSQL
 
-1. Initialize your PostgreSQL database by running the [`init-pg.sql`](init-pg.sql) script. This script will:
+Install dependencies and configure the connection strings first:
 
-   - Create the `featbit` database.
-   - Create all necessary tables and indexes.
+```bash
+npm ci
+cp .env.example .env
+# Set POSTGRES_ADMIN_CONNECTION_STRING to the target server's postgres database.
+npm run init:pg
+```
 
-2. Clone this repository to your local machine and install dependencies:
-   ```bash
-   git clone <repository-url>
-   cd featbit-db-migrator
-   npm install
-   ```
-3. Configure Connection Strings:
-   - Create a `.env` file in the root directory based on the `.env.template` file.
-   - Fill in your MongoDB and PostgreSQL connection strings in the `.env` file.
+The command clones FeatBit v5.4.10 into `.cache/featbit-5.4.10` on first use and verifies the reviewed commit `100d585e481fca3413468cbc6a9c70eb5246cc60`. Git and `psql` must be installed. You can reuse an existing checkout:
 
-Connection String Formats:
+```bash
+npm run init:pg -- /path/to/featbit-v5.4.10
+```
 
-- **MongoDB**: Follow the [MongoDB connection string format](https://www.mongodb.com/docs/manual/reference/connection-string/).
-- **PostgreSQL**: Follow the [Postgres connection string format](https://github.com/brianc/node-postgres/tree/master/packages/pg-connection-string).
+All SQL is read from the pinned Git commit, so local changes in that checkout are not executed. The command checks that every required file exists and that the base script has exactly one `-- 2. seed data` boundary before touching PostgreSQL.
 
-## Usage
+It then runs the base script **without seed data**, followed by the original upgrade scripts in this order: `5.0.4`, `5.0.5`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `5.3.2`, `5.4.0`, `5.4.1`. Each file runs separately through `psql -X` with `ON_ERROR_STOP=1`; logs identify the current script. Temporary SQL files are removed afterward.
 
-1. Generate CSV Files
+The base script creates and connects to database `featbit`. Run initialization **only before import**, once, on a fresh target. Any failure stops subsequent scripts; earlier changes may already be committed. Resolve the error and recreate the dedicated empty target before retrying. There is no automatic resume or destructive database cleanup. Do not replay historical upgrades after import: some reset settings or change permissions.
 
-    Run the following command to extract data from MongoDB and generate CSV files:
-    ```bash
-    node index.js
-    ```
+Do not start FeatBit against the target until after migration; application startup may seed records.
 
-    This will:
-    - Connect to both MongoDB and PostgreSQL
-    - Extract data from MongoDB collections
-    - Filter out records that already exist in PostgreSQL
-    - Generate CSV files for each collection in the `csvs/` directory
+## 2. Configure and export
 
-2. Generate Import Scripts
+Using the `.env` configured above, set `MONGODB_CONNECTION_STRING` to the intended source database and `POSTGRES_CONNECTION_STRING` to the target `featbit` database:
 
-    Run the following command to generate SQL import scripts:
-    ```bash
-    node get-scripts.js
-    ```
+```bash
+node index.js
+```
 
-    This will create a file named `scripts-to-run.sql` containing `\copy` commands to import each CSV file into the corresponding PostgreSQL table.
+The command prints its output directory under `exports/`. To select a directory explicitly:
 
-3. Import Data to PostgreSQL
+```bash
+node index.js ./exports/customer-rehearsal
+```
 
-    For better progress monitoring and error handling, we recommend executing commands one at a time:
+Each run requires a new output directory. Collections are read in batches of 500. An error exits with a nonzero status; partial exports have no usable `manifest.json` and must not be imported. Source version checks detect selected legacy fields, but are not a substitute for confirming that all upstream upgrades ran.
 
-    ```bash
-    psql -U your_username -d featbit
-    # Then run each \copy command from scripts-to-run.sql individually
-    ```
+The source database must contain `Workspaces`, `Users` and `WorkspaceUsers`; a missing collection blocks export.
 
-> [!NOTE]
-> The following collections are **not migrated** by this tool:
->
-> - `EndUsers` - End user data
-> - `Events` - Analytics and insights data
->
-> These collections typically contain large volumes of data and may require separate migration strategies.
+The completed manifest lists table columns, row counts and SHA-256 file hashes. Keep the export intact and protect it as customer data: it contains password hashes, tokens and configuration secrets.
 
-## Troubleshooting
+## 3. Generate and execute import
 
-### Connection Errors
+```bash
+node get-scripts.js ./exports/customer-rehearsal
+psql "$POSTGRES_CONNECTION_STRING" -v ON_ERROR_STOP=1 -f ./exports/customer-rehearsal/scripts-to-run.sql
+```
 
-- Verify connection strings are correct
-- Check network access to both databases
-- Ensure MongoDB user has read permissions
-- Ensure PostgreSQL user has write permissions
+Export and import use `.env` for the Node.js commands. Shell commands require the connection variables to be set in the shell separately; `psql` does not load `.env`.
 
-### Import Errors
+Script generation checks CSV hashes and manifest completeness. Import specifies columns explicitly and runs in one transaction, locking target tables, rejecting nonempty tables again, checking imported counts, and verifying core membership relationships before committing. On failure, the transaction is rolled back. Fix the cause and retry with a fresh export when necessary.
 
-- Check PostgreSQL logs for detailed error messages
-- Verify CSV files in `csvs/` directory are not empty
-- Ensure file paths in `scripts-to-run.sql` are absolute paths
-- Check for encoding issues (UTF-8 is required)
+`\copy` reads absolute CSV paths on the machine running `psql`. Keep the export at that location; if moved, regenerate the script. Paths containing single quotes, backslashes or line breaks are rejected. Do not execute individual copy commands outside the generated transaction.
 
-If you encounter issues not covered here, please open an issue in this repository or join our [Slack community](https://join.slack.com/t/featbit/shared_invite/zt-1ew5e2vbb-x6Apan1xZOaYMnFzqZkGNQ) for assistance.
+## 4. Rehearse, cut over and roll back
+
+Follow the [customer runbook](docs/migration-runbook.md). A successful import is only one acceptance criterion. Validate login/passwords, workspace and organization membership, permissions, environment secrets/settings, representative SDK evaluations, experiments and integrations against the source deployment.
+
+Formal release requires customer-copy rehearsal and application acceptance. Synthetic tests do not replace those checks.
+
+## Development validation
+
+```bash
+npm test
+npm run test:integration
+```
+
+The integration test requires Docker. It starts isolated `mongo:5.0.32` and `postgres:15.10` containers on random loopback ports and removes them afterward. It never uses the connection strings in `.env`. It initializes the official schema, checks every mapped column, exports/imports 58 synthetic records across 29 collections, checks critical round trips, and exercises failure guards.
+
+No test can establish compatibility with all customer data or external analytics stores. Record actual rehearsal duration, storage requirements and acceptance results before scheduling the production window.
+
+To test initialization with an existing local source checkout and no clone:
+
+```bash
+FEATBIT_CHECKOUT=/path/to/featbit-v5.4.10 npm run test:integration
+```

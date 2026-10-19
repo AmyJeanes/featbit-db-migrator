@@ -1,7 +1,7 @@
 import { ConverterBase } from "./converterBase.js";
 
 export class PolicyConverter extends ConverterBase {
-  pgColumns = ["id", "organization_id", "name", "description", "type", "statements", "created_at", "updated_at"];
+  pgColumns = ["id", "organization_id", "name", "key", "description", "type", "statements", "created_at", "updated_at"];
 
   toCsv(mongoDocs) {
     return mongoDocs.map(doc => {
@@ -11,6 +11,7 @@ export class PolicyConverter extends ConverterBase {
         
         if (col === "statements") {
           // replace _id with id in each statement
+          if (value == null) return this.toStringValue(value);
           value = value.map(statement => {
             const newStatement = {...statement};
             if (newStatement._id) {

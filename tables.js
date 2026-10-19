@@ -2,6 +2,7 @@ export const TABLE_MAPPING = [
   { Workspaces: "workspaces" },
 
   { Users: "users" },
+  { WorkspaceUsers: "workspace_users" },
 
   { Organizations: "organizations" },
   { OrganizationUsers: "organization_users" },
@@ -31,7 +32,10 @@ export const TABLE_MAPPING = [
   { Webhooks: "webhooks" },
   { WebhookDeliveries: "webhook_deliveries" },
 
-  // ignore endusers and events for now
+  { UsageEndUserStats: "usage_end_user_stats" },
+  { UsageEventStats: "usage_event_stats" },
+
+  // EndUsers, Events, RefreshTokens and QueueMessages are intentionally excluded.
   // { EndUsers: "end_users" },
   // { Events: "events" },
 ];

@@ -11,6 +11,7 @@ export class ExperimentConverter extends ConverterBase {
         
         if (col === "iterations") {
           // replace _id with id in each iteration
+          if (value == null) return this.toStringValue(value);
           value = value.map(iteration => {
             const newIteration = {...iteration};
             if (newIteration._id) {

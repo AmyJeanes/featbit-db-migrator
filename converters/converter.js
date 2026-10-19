@@ -1,3 +1,4 @@
+import { ColumnsConverter } from "./columnsConverter.js";
 import { UsersConverter } from "./usersConverter.js";
 import { SegmentsConverter } from "./segmentsConverter.js";
 import { FeatureFlagsConverter } from "./featureFlagsConverter.js";
@@ -31,6 +32,12 @@ import { WebhookDeliveryConverter } from "./webhookDeliveryConverter.js";
 export class Converter {
     static getConverter(collection) {
         switch (collection) {
+            case "WorkspaceUsers":
+                return new ColumnsConverter(["id", "workspace_id", "user_id", "created_at", "updated_at"]);
+            case "UsageEndUserStats":
+                return new ColumnsConverter(["env_id", "year_month", "user_key", "first_seen_at"]);
+            case "UsageEventStats":
+                return new ColumnsConverter(["env_id", "stats_date", "flag_evaluations", "custom_metrics"]);
             case "Users":
                 return new UsersConverter();
 

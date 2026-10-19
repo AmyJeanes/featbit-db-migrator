@@ -11,6 +11,7 @@ export class EnvironmentsConverter extends ConverterBase {
 
           if (col === 'secrets' || col === 'settings') {
             // replace all _id with id in JSON string
+            if (value == null) return this.toStringValue(value);
             const normalizedJsonValue = JSON.stringify(value).replace(/"_id":/g, '"id":');
             const normalizedValue = JSON.parse(normalizedJsonValue);
 
