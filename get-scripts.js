@@ -1,6 +1,6 @@
 import { fileHash } from './integrity.js';
 import { readFile, writeFile, access } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { resolve, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TABLE_MAPPING } from './tables.js';
 import { Converter } from './converters/converter.js';
@@ -22,7 +22,7 @@ END LOOP; END $$;`);
     const columns = Converter.getConverter(collection).pgColumns;
     const entry = manifest.tables[i];
     if (entry.table !== table || entry.file !== `${i}_${table}.csv` || JSON.stringify(entry.columns) !== JSON.stringify(columns) || !Number.isSafeInteger(entry.rows) || entry.rows < 0) throw new Error('Invalid manifest table');
-    const path = join(dir, entry.file);
+    const path = join(dir, entry.file).split(sep).join('/');
     if (/[\r\n'\\]/.test(path)) throw new Error('Export path cannot contain quotes, backslashes or newlines');
     await access(path);
     if (await fileHash(path) !== entry.sha256) throw new Error(`CSV checksum mismatch: ${table}`);

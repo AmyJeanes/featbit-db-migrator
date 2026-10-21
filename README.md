@@ -80,7 +80,7 @@ Export and import use `.env` for the Node.js commands. Shell commands require th
 
 Script generation checks CSV hashes and manifest completeness. Import specifies columns explicitly and runs in one transaction, locking target tables, rejecting nonempty tables again, checking imported counts, and verifying core membership relationships before committing. On failure, the transaction is rolled back. Fix the cause and retry with a fresh export when necessary.
 
-`\copy` reads absolute CSV paths on the machine running `psql`. Keep the export at that location; if moved, regenerate the script. Paths containing single quotes, backslashes or line breaks are rejected. Do not execute individual copy commands outside the generated transaction.
+`\copy` reads absolute CSV paths on the machine running `psql`. Keep the export at that location; if moved, regenerate the script. Windows path separators are normalized to forward slashes. Paths containing single quotes or line breaks are rejected; literal backslashes in POSIX paths are also rejected. Do not execute individual copy commands outside the generated transaction.
 
 ## 4. Rehearse, cut over and roll back
 
@@ -91,7 +91,7 @@ Formal release requires customer-copy rehearsal and application acceptance. Synt
 ## Development validation
 
 ```bash
-npm test
+npm run test:unit
 npm run test:integration
 ```
 

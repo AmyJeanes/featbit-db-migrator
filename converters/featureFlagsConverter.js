@@ -19,7 +19,7 @@ export class FeatureFlagsConverter extends ConverterBase {
                 }
 
                 if (col === 'tags') {
-                    return this.toStringArrayValue(value === undefined ? [] : value);
+                    return this.toStringArrayValue(value);
                 }
 
                 return this.toStringValue(value);

@@ -7,7 +7,7 @@ Latest unit and integration verification: 2026-10-19.
 
 ## Completed
 
-- `npm test`: 7 unit tests passed, covering nested BSON UUID/binary decoding, large integer representation, CSV quoting, PostgreSQL arrays, moved user fields legacy source guards, and strict seed-section exclusion.
+- `npm run test:unit`: 7 unit tests passed, covering nested BSON UUID/binary decoding, large integer representation, CSV quoting, PostgreSQL arrays, moved user fields legacy source guards, and strict seed-section exclusion.
 - `npm run test:integration`: passed using isolated MongoDB 5.0.32 and PostgreSQL 15.10 Docker containers. Containers and temporary exports were removed afterward.
 - The integration test clones/verifies the pinned upstream source and executes its SQL files in version order, excluding the base seed-data section, then compares every exported column with the actual schema across all 29 mapped tables.
 - 58 synthetic records are exported with batch size 1 and imported through generated `psql` commands. Each table count and every ID-based table's ID set is checked.

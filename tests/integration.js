@@ -77,7 +77,7 @@ try {
         }
       }
       if (collection === 'FlagRevisions') doc.flag = { _id: new UUID(id), key: 'flag-key', variations: [{ _id: 'variation-1', value: true }] };
-      if (collection === 'WebhookDeliveries') doc.error = i ? null : 'error|\"\\\r\n';
+      if (collection === 'WebhookDeliveries') doc.error = i ? null : { message: 'error|\"\\\r\n' };
       if (collection === 'Users') { doc.password = `password-hash-${i}`; doc.initialPassword = i ? '' : 'initial|"\\\r\n'; }
       if (collection === 'UsageEndUserStats') { doc._id = new ObjectId(); doc.yearMonth = 202610; doc.userKey = `user-${i}`; }
       if (collection === 'UsageEventStats') doc._id = new ObjectId();
@@ -92,6 +92,17 @@ try {
   const outputDir = join(temp, 'export');
   await new Migrator(mongo, pg, { outputDir, batchSize: 1 }).generate_csv();
   const sqlPath = await generateScripts(outputDir);
+  const containerDir = '/tmp/featbit-export';
+  const containerSqlPath = `${containerDir}/scripts-to-run.sql`;
+  const copyExport = async () => {
+    docker('exec', pgName, 'mkdir', '-p', containerDir);
+    docker('cp', outputDir + '/.', `${pgName}:${containerDir}`);
+    // psql runs in Linux, so its CSV paths must refer to the copied files.
+    const sql = await readFile(sqlPath, 'utf8');
+    const containerSql = join(temp, 'container-import.sql');
+    await writeFile(containerSql, sql.replaceAll(outputDir.replaceAll('\\', '/') + '/', containerDir + '/'));
+    docker('cp', containerSql, `${pgName}:${containerSqlPath}`);
+  };
   const original = await readFile(join(outputDir, '0_workspaces.csv'));
   await appendFile(join(outputDir, '0_workspaces.csv'), 'tampered');
   await assert.rejects(generateScripts(outputDir), /checksum/);
@@ -111,15 +122,14 @@ try {
   broken.tables[2].sha256 = await fileHash(membershipPath);
   await writeFile(manifestPath, JSON.stringify(broken));
   await generateScripts(outputDir);
-  docker('exec', pgName, 'mkdir', '-p', outputDir);
-  docker('cp', outputDir + '/.', `${pgName}:${outputDir}`);
-  assert.throws(() => docker('exec', pgName, 'psql', '-U', 'postgres', '-d', 'featbit', '-f', sqlPath), /Orphan workspace membership/);
+  await copyExport();
+  assert.throws(() => docker('exec', pgName, 'psql', '-U', 'postgres', '-d', 'featbit', '-f', containerSqlPath), /Orphan workspace membership/);
   assert.equal((await pg.query('SELECT count(*)::int n FROM users')).rows[0].n, 0, 'Import must roll back');
   await writeFile(membershipPath, membershipCsv);
   await writeFile(manifestPath, originalManifest);
   await generateScripts(outputDir);
-  docker('cp', outputDir + '/.', `${pgName}:${outputDir}`);
-  docker('exec', pgName, 'psql', '-U', 'postgres', '-d', 'featbit', '-f', sqlPath);
+  await copyExport();
+  docker('exec', pgName, 'psql', '-U', 'postgres', '-d', 'featbit', '-f', containerSqlPath);
   for (const m of TABLE_MAPPING) {
     const table = Object.values(m)[0];
     assert.equal((await pg.query(`SELECT count(*)::int AS count FROM ${table}`)).rows[0].count, 2, table);
@@ -129,14 +139,14 @@ try {
   assert.equal(users[0].password, 'password-hash-0');
   assert.equal(users[0].initial_password, 'initial|"\\\r\n');
   assert.equal(users[1].initial_password, '');
-  assert.equal((await pg.query('SELECT error FROM webhook_deliveries WHERE id=$1', [ids[0]])).rows[0].error, 'error|\"\\\r\n');
+  assert.deepEqual((await pg.query('SELECT error FROM webhook_deliveries WHERE id=$1', [ids[0]])).rows[0].error, { message: 'error|\"\\\r\n' });
   assert.equal((await pg.query('SELECT count(*)::int n FROM workspace_users w JOIN users u ON u.id=w.user_id JOIN workspaces s ON s.id=w.workspace_id')).rows[0].n, 2);
   assert.deepEqual((await pg.query('SELECT tags FROM segments WHERE id=$1', [ids[0]])).rows[0].tags, array);
   assert.deepEqual((await pg.query('SELECT settings FROM environments WHERE id=$1', [ids[0]])).rows[0].settings, { preserved: '中文|"\\\r\n', nested: { value: 0 } });
   assert.equal((await pg.query('SELECT flag FROM flag_revisions WHERE id=$1', [ids[0]])).rows[0].flag.id, ids[0]);
   assert.equal((await pg.query('SELECT rules FROM feature_flags WHERE id=$1', [ids[0]])).rows[0].rules[0].id, ids[0]);
   await assert.rejects(new Migrator(mongo, pg, { outputDir: join(temp, 'retry') }).generate_csv(), /not empty/);
-  assert.throws(() => docker('exec', pgName, 'psql', '-U', 'postgres', '-d', 'featbit', '-f', sqlPath), /Command failed/);
+  assert.throws(() => docker('exec', pgName, 'psql', '-U', 'postgres', '-d', 'featbit', '-f', containerSqlPath), /Command failed/);
   await assert.rejects(generateScripts(join(temp, 'missing')), /ENOENT/);
   // A failed source validation must leave no usable manifest.
   for (const m of TABLE_MAPPING) await pg.query(`TRUNCATE ${Object.values(m)[0]}`);

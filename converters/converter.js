@@ -1,4 +1,6 @@
-import { ColumnsConverter } from "./columnsConverter.js";
+import { WorkspaceUsersConverter } from "./workspaceUsersConverter.js";
+import { UsageEndUserStatsConverter } from "./usageEndUserStatsConverter.js";
+import { UsageEventStatsConverter } from "./usageEventStatsConverter.js";
 import { UsersConverter } from "./usersConverter.js";
 import { SegmentsConverter } from "./segmentsConverter.js";
 import { FeatureFlagsConverter } from "./featureFlagsConverter.js";
@@ -29,74 +31,44 @@ import { RelayProxyConverter } from "./relayProxyConverter.js";
 import { WebhooksConverter } from "./webhooksConverter.js";
 import { WebhookDeliveryConverter } from "./webhookDeliveryConverter.js";
 
+const converters = new Map([
+    ["WorkspaceUsers", WorkspaceUsersConverter],
+    ["UsageEndUserStats", UsageEndUserStatsConverter],
+    ["UsageEventStats", UsageEventStatsConverter],
+    ["Users", UsersConverter],
+    ["Workspaces", WorkspacesConverter],
+    ["Organizations", OrganizationsConverter],
+    ["OrganizationUsers", OrganizationUsersConverter],
+    ["Projects", ProjectsConverter],
+    ["Environments", EnvironmentsConverter],
+    ["EndUserProperties", EndUserPropertiesConverter],
+    ["Segments", SegmentsConverter],
+    ["FeatureFlags", FeatureFlagsConverter],
+    ["FlagRevisions", FlagRevisionsConverter],
+    ["FlagDrafts", FlagDraftsConverter],
+    ["FlagSchedules", FlagSchedulesConverter],
+    ["FlagChangeRequests", FlagChangeRequestsConverter],
+    ["Triggers", TriggersConverter],
+    ["AuditLogs", AuditLogsConverter],
+    ["Groups", GroupConverter],
+    ["Policies", PolicyConverter],
+    ["GroupMembers", GroupMemberConverter],
+    ["GroupPolicies", GroupPolicyConverter],
+    ["MemberPolicies", MemberPolicyConverter],
+    ["Experiments", ExperimentConverter],
+    ["ExperimentMetrics", ExperimentMetricConverter],
+    ["AccessTokens", AccessTokenConverter],
+    ["RelayProxies", RelayProxyConverter],
+    ["Webhooks", WebhooksConverter],
+    ["WebhookDeliveries", WebhookDeliveryConverter],
+]);
+
 export class Converter {
     static getConverter(collection) {
-        switch (collection) {
-            case "WorkspaceUsers":
-                return new ColumnsConverter(["id", "workspace_id", "user_id", "created_at", "updated_at"]);
-            case "UsageEndUserStats":
-                return new ColumnsConverter(["env_id", "year_month", "user_key", "first_seen_at"]);
-            case "UsageEventStats":
-                return new ColumnsConverter(["env_id", "stats_date", "flag_evaluations", "custom_metrics"]);
-            case "Users":
-                return new UsersConverter();
-
-            case "Workspaces":
-                return new WorkspacesConverter();
-
-            case "Organizations":
-                return new OrganizationsConverter();
-            case "OrganizationUsers":
-                return new OrganizationUsersConverter();
-            case "Projects":
-                return new ProjectsConverter();
-            case "Environments":
-                return new EnvironmentsConverter();
-            case "EndUserProperties":
-                return new EndUserPropertiesConverter();
-            case "Segments":
-                return new SegmentsConverter();
-            case "FeatureFlags":
-                return new FeatureFlagsConverter();
-            case "FlagRevisions":
-                return new FlagRevisionsConverter();
-            case "FlagDrafts":
-                return new FlagDraftsConverter();
-            case "FlagSchedules":
-                return new FlagSchedulesConverter();
-            case "FlagChangeRequests":
-                return new FlagChangeRequestsConverter();
-            case "Triggers":
-                return new TriggersConverter();
-            case "AuditLogs":
-                return new AuditLogsConverter();
-
-            case "Groups":
-                return new GroupConverter();
-            case "Policies":
-                return new PolicyConverter();
-            case "GroupMembers":
-                return new GroupMemberConverter();
-            case "GroupPolicies":
-                return new GroupPolicyConverter();
-            case "MemberPolicies":
-                return new MemberPolicyConverter();
-
-            case "Experiments":
-                return new ExperimentConverter();
-            case "ExperimentMetrics":
-                return new ExperimentMetricConverter();
-
-            case "AccessTokens":
-                return new AccessTokenConverter();
-            case "RelayProxies":
-                return new RelayProxyConverter();
-            case "Webhooks":
-                return new WebhooksConverter();
-            case "WebhookDeliveries":
-                return new WebhookDeliveryConverter();
-            default:
-                throw new Error(`No converter found for collection: ${collection}`);
+        const ConverterClass = converters.get(collection);
+        if (!ConverterClass) {
+            throw new Error(`No converter found for collection: ${collection}`);
         }
+        return new ConverterClass();
     }
 }
