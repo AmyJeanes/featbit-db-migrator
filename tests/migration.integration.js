@@ -1,5 +1,6 @@
 // Isolated integration test: requires Docker, never uses configured customer databases.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, appendFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -20,6 +21,13 @@ const temp = await mkdtemp(join(tmpdir(), 'featbit-migrator-'));
 let pg, mongo;
 const ids = ['acb588c1-cd8c-4a38-9cc0-71a969a4135a', '9d42b037-eb8c-491c-a529-fb7a7818fc09'];
 const array = ['a,b', 'a"b', '\\', 'NULL', '', null, '中文|\r\nx'];
+const revokedId = '00000000-0000-0000-0000-000000000003';
+const tokenHash = value => createHash('sha256').update(value).digest('hex');
+const refreshTokens = [
+  { _id: new UUID(ids[0]), userId: new UUID(ids[0]), token: tokenHash('active-test-only'), isRevoked: false, expiresAt: new Date('2099-01-01T00:00:00Z'), revokedAt: null, lastUsedAt: null, replacedByToken: null, createdByIp: '127.0.0.1', revokedByIp: null },
+  { _id: new UUID(ids[1]), userId: new UUID(ids[1]), token: tokenHash('expired-test-only'), isRevoked: false, expiresAt: new Date('2000-01-01T00:00:00Z'), revokedAt: null, lastUsedAt: null, replacedByToken: null, createdByIp: null, revokedByIp: null },
+  { _id: new UUID(revokedId), userId: new UUID(ids[0]), token: tokenHash('revoked-test-only'), isRevoked: true, expiresAt: new Date('2099-01-01T00:00:00Z'), revokedAt: new Date('2026-01-02T00:00:00Z'), lastUsedAt: new Date('2026-01-02T00:00:00Z'), replacedByToken: tokenHash('replacement-test-only'), createdByIp: '::1', revokedByIp: '127.0.0.2' }
+].map(doc => ({ ...doc, createdAt: new Date('2026-01-01T00:00:00Z'), updatedAt: new Date('2026-01-02T00:00:00Z') }));
 try {
   docker('run', '-d', '--name', pgName, '-e', 'POSTGRES_PASSWORD=test-only', '-p', '127.0.0.1::5432', 'postgres:15.10');
   docker('run', '-d', '--name', mongoName, '-p', '127.0.0.1::27017', 'mongo:5.0.32');
@@ -84,7 +92,7 @@ try {
       if (collection === 'UsageEventStats') doc._id = new ObjectId();
       return doc;
     });
-    await mongo.db().collection(collection).insertMany(docs);
+    await mongo.db().collection(collection).insertMany(collection === 'RefreshTokens' ? refreshTokens : docs);
   }
   // Composite keys must preserve multiple rows sharing env_id.
   for (const collection of ['UsageEndUserStats', 'UsageEventStats']) {
@@ -136,10 +144,18 @@ try {
   docker('exec', pgName, 'psql', '-U', 'postgres', '-d', 'featbit', '-f', containerSqlPath);
   for (const m of TABLE_MAPPING) {
     const table = Object.values(m)[0];
-    assert.equal((await pg.query(`SELECT count(*)::int AS count FROM ${table}`)).rows[0].count, 2, table);
-    if (!table.startsWith('usage_')) assert.deepEqual((await pg.query(`SELECT id FROM ${table} ORDER BY id`)).rows.map(r => r.id), [...ids].sort(), table + ' IDs');
+    assert.equal((await pg.query(`SELECT count(*)::int AS count FROM ${table}`)).rows[0].count, table === 'refresh_tokens' ? 3 : 2, table);
+    if (!table.startsWith('usage_')) assert.deepEqual((await pg.query(`SELECT id FROM ${table} ORDER BY id`)).rows.map(r => r.id), (table === 'refresh_tokens' ? [...ids, revokedId] : [...ids]).sort(), table + ' IDs');
   }
   assert.deepEqual((await pg.query('SELECT customized_properties FROM end_users WHERE id=$1', [ids[0]])).rows[0].customized_properties, [{ name: 'company', value: '中文|\"\\\r\n' }]);
+  for (const doc of refreshTokens) {
+    const row = (await pg.query('SELECT * FROM refresh_tokens WHERE id=$1', [doc._id.toString()])).rows[0];
+    for (const column of Converter.getConverter('RefreshTokens').pgColumns) {
+      const field = Converter.getConverter('RefreshTokens').getMongoFieldFromPgColumn(column);
+      const expected = doc[field];
+      assert.deepEqual(row[column], expected instanceof UUID ? expected.toString() : expected, `RefreshTokens.${column}`);
+    }
+  }
   const users = (await pg.query('SELECT * FROM users ORDER BY email')).rows;
   assert.equal(users[0].password, 'password-hash-0');
   assert.equal(users[0].initial_password, 'initial|"\\\r\n');
@@ -158,12 +174,12 @@ try {
   await writeFile(join(outputDir, 'stale.csv'), 'old export');
   await new MongoDbExporter(mongo, pg, { outputDir }).generate_csv();
   await assert.rejects(readFile(join(outputDir, 'stale.csv')), /ENOENT/);
-  assert.equal(JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8')).tables.length, 30);
+  assert.equal(JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8')).tables.length, 31);
   await mongo.db().collection('Segments').updateOne({}, { $set: { tags: 'invalid-array' } });
   const failedDir = join(temp, 'failed');
   await assert.rejects(new MongoDbExporter(mongo, pg, { outputDir: failedDir }).generate_csv(), /Expected a PostgreSQL array/);
   await assert.rejects(readFile(join(failedDir, 'manifest.json')), /ENOENT/);
-  console.log('Integration passed: 30 table mappings, 60 rows, BSON/JSON/array round trips, memberships, composite keys and failure guards.');
+  console.log('Integration passed: 31 table mappings, 63 rows, BSON/JSON/array round trips, memberships, composite keys and failure guards.');
 } finally {
   await Promise.allSettled([pg?.end(), mongo?.close()]);
   for (const name of [pgName, mongoName]) { try { docker('rm', '-f', name); } catch {} }

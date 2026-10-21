@@ -1,3 +1,4 @@
+import { RefreshTokensConverter } from "./refreshTokensConverter.js";
 import { EndUsersConverter } from "./endUsersConverter.js";
 import { WorkspaceUsersConverter } from "./workspaceUsersConverter.js";
 import { UsageEndUserStatsConverter } from "./usageEndUserStatsConverter.js";
@@ -33,6 +34,7 @@ import { WebhooksConverter } from "./webhooksConverter.js";
 import { WebhookDeliveryConverter } from "./webhookDeliveryConverter.js";
 
 const converters = new Map([
+    ["RefreshTokens", RefreshTokensConverter],
     ["EndUsers", EndUsersConverter],
     ["WorkspaceUsers", WorkspaceUsersConverter],
     ["UsageEndUserStats", UsageEndUserStatsConverter],

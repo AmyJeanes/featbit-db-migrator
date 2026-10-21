@@ -37,8 +37,9 @@ export const TABLE_MAPPING = [
 
   { EndUsers: "end_users" },
 
-  // Events, RefreshTokens and QueueMessages are intentionally excluded.
+  { RefreshTokens: "refresh_tokens" },
+
+  // Events and QueueMessages are intentionally excluded.
   // { Events: "events" },
-  // { RefreshTokens: "refresh_tokens" },
   // { QueueMessages: "queue_messages" },
 ];

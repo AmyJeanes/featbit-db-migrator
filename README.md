@@ -10,7 +10,6 @@ A Node.js utility for migrating an **already-upgraded FeatBit 5.4.10 MongoDB dat
 **Excluded:**
 
 - `Events`: excluded because the collection may contain a large volume of data. If historical events are required, plan a separate migration with an appropriate scope, such as only the most recent month. Upgrading to FeatBit 6.0 also does not migrate historical Events data; see [Historical data in the v6 upgrade guide](https://docs.featbit.co/installation/upgrade/upgrade-to-v6#historical-data).
-- `RefreshTokens`: users must log in again after cutover. Existing JWT validity also depends on signing keys and expiry.
 - `QueueMessages`: PostgreSQL message-queue storage. MongoDB deployments use Redis for their message queue, so there is no corresponding MongoDB collection to migrate.
 
 **Limitation:** Export stops if `EndUsers` collection exceeds `END_USERS_AUTO_MIGRATION_LIMIT` (default: 10,000 records). Assess data size and migration time before increasing this value in `.env`.
