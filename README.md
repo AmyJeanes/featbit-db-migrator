@@ -54,13 +54,13 @@ Do not start FeatBit against the target until after migration; application start
 Using the `.env` configured above, set `MONGODB_CONNECTION_STRING` to the intended source database and `POSTGRES_CONNECTION_STRING` to the target `featbit` database:
 
 ```bash
-node index.js
+npm run export
 ```
 
 The command prints its output directory under `exports/`. To select a directory explicitly:
 
 ```bash
-node index.js ./exports/customer-rehearsal
+npm run export -- ./exports/customer-rehearsal
 ```
 
 Each run requires a new output directory. Collections are read in batches of 500. An error exits with a nonzero status; partial exports have no usable `manifest.json` and must not be imported. Source version checks detect selected legacy fields, but are not a substitute for confirming that all upstream upgrades ran.
@@ -72,7 +72,7 @@ The completed manifest lists table columns, row counts and SHA-256 file hashes. 
 ## 3. Generate and execute import
 
 ```bash
-node get-scripts.js ./exports/customer-rehearsal
+npm run generate:import -- ./exports/customer-rehearsal
 psql "$POSTGRES_CONNECTION_STRING" -v ON_ERROR_STOP=1 -f ./exports/customer-rehearsal/scripts-to-run.sql
 ```
 
@@ -104,3 +104,9 @@ To test initialization with an existing local source checkout and no clone:
 ```bash
 FEATBIT_CHECKOUT=/path/to/featbit-v5.4.10 npm run test:integration
 ```
+
+## Project structure
+
+- `scripts/`: command entry points for PostgreSQL initialization, MongoDB export and import SQL generation.
+- `src/`: migration logic, source normalization, integrity checks, table mappings and per-collection converters.
+- `tests/`: unit and Docker integration tests.

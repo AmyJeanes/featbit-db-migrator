@@ -1,9 +1,9 @@
-import { fileHash } from './integrity.js';
+import { fileHash } from '../src/integrity.js';
 import { readFile, writeFile, access } from 'node:fs/promises';
 import { resolve, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TABLE_MAPPING } from './tables.js';
-import { Converter } from './converters/converter.js';
+import { TABLE_MAPPING } from '../src/tables.js';
+import { Converter } from '../src/converters/converter.js';
 
 export async function generateScripts(directory) {
   const dir = resolve(directory);
@@ -44,6 +44,6 @@ END $$;`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (!process.argv[2]) throw new Error('Usage: node get-scripts.js <export-directory>');
+  if (!process.argv[2]) throw new Error('Usage: node scripts/generate-import-script.js <export-directory>');
   console.log(await generateScripts(process.argv[2]));
 }

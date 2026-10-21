@@ -6,11 +6,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MongoClient, UUID, ObjectId } from 'mongodb';
 import { Client } from 'pg';
-import { TABLE_MAPPING } from '../tables.js';
-import { Converter } from '../converters/converter.js';
-import { Migrator } from '../migrator.js';
-import { fileHash } from '../integrity.js';
-import { generateScripts } from '../get-scripts.js';
+import { TABLE_MAPPING } from '../src/tables.js';
+import { Converter } from '../src/converters/converter.js';
+import { Migrator } from '../src/migrator.js';
+import { fileHash } from '../src/integrity.js';
+import { generateScripts } from '../scripts/generate-import-script.js';
 import { initializeDatabase } from '../scripts/init-pg.js';
 
 const docker = (...args) => execFileSync('docker', args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();

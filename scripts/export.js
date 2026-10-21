@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { MongoClient } from 'mongodb';
 import { Client } from 'pg';
-import { Migrator } from './migrator.js';
+import { Migrator } from '../src/migrator.js';
 
 const mongoUri = process.env.MONGODB_CONNECTION_STRING;
 const pgUri = process.env.POSTGRES_CONNECTION_STRING;

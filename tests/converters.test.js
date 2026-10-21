@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { UUID, Binary, Long } from 'mongodb';
-import { ConverterBase } from '../converters/converterBase.js';
-import { Converter } from '../converters/converter.js';
-import { normalizeBson, validateSource } from '../source.js';
+import { ConverterBase } from '../src/converters/converterBase.js';
+import { Converter } from '../src/converters/converter.js';
+import { normalizeBson, validateSource } from '../src/source.js';
 
 const base = new ConverterBase();
 test('BSON UUIDs survive nested JSON and binary decoding', () => {
