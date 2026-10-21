@@ -6,7 +6,7 @@ The export preserves IDs, password hashes, workspace memberships, policy/segment
 
 ## Scope
 
-29 collections are migrated. See the [complete field mapping and version differences](docs/mapping-5.4.10.md).
+29 collections are migrated.
 
 Excluded:
 
@@ -84,7 +84,7 @@ Script generation checks CSV hashes and manifest completeness. Import specifies 
 
 ## 4. Rehearse, cut over and roll back
 
-Follow the [customer runbook](docs/migration-runbook.md). A successful import is only one acceptance criterion. Validate login/passwords, workspace and organization membership, permissions, environment secrets/settings, representative SDK evaluations, experiments and integrations against the source deployment.
+A successful import is only one acceptance criterion. Validate login/passwords, workspace and organization membership, permissions, environment secrets/settings, representative SDK evaluations, experiments and integrations against the source deployment.
 
 Formal release requires customer-copy rehearsal and application acceptance. Synthetic tests do not replace those checks.
 
