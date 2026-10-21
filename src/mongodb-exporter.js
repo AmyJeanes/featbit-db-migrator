@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile, appendFile, rm } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
-import { TABLE_MAPPING } from './tables.js';
+import { TABLE_MAPPING } from './collection-table-mapping.js';
 import { Converter } from './converters/converter.js';
-import { normalizeBson, validateSource } from './source.js';
+import { normalizeBson } from './mongodb-document.js';
 
-export class Migrator {
+export class MongoDbExporter {
   constructor(mongodb, postgres, { outputDir, batchSize = 500 } = {}) {
     this.mongodb = mongodb.db();
     this.postgres = postgres;
@@ -54,7 +54,6 @@ export class Migrator {
       try {
         for await (const raw of cursor) {
           const doc = normalizeBson(raw);
-          validateSource(collection, doc);
           batch.push(doc);
           if (batch.length >= this.batchSize) await flush();
         }

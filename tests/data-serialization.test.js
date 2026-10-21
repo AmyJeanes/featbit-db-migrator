@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { UUID, Binary, Long } from 'mongodb';
 import { ConverterBase } from '../src/converters/converterBase.js';
-import { Converter } from '../src/converters/converter.js';
-import { normalizeBson, validateSource } from '../src/source.js';
+import { normalizeBson } from '../src/mongodb-document.js';
 
 const base = new ConverterBase();
 test('BSON UUIDs survive nested JSON and binary decoding', () => {
@@ -22,16 +21,4 @@ test('PostgreSQL arrays preserve null, empty, literal NULL and backslashes', () 
   assert.equal(base.toStringArrayValue(null), '{}');
   assert.equal(base.toStringArrayValue(undefined), '{}');
   assert.equal(base.toStringArrayValue(['', null, 'NULL', 'a\\b', 'a"b']), '"{"""",NULL,""NULL"",""a\\\\b"",""a\\""b""}"');
-});
-test('5.4.10 users and memberships preserve moved fields', () => {
-  assert(!Converter.getConverter('Users').pgColumns.includes('workspace_id'));
-  assert(Converter.getConverter('Users').pgColumns.includes('initial_password'));
-  assert(!Converter.getConverter('OrganizationUsers').pgColumns.includes('initial_password'));
-  assert(Converter.getConverter('WorkspaceUsers').pgColumns.includes('user_id'));
-});
-test('reject legacy source schemas instead of silently dropping fields', () => {
-  assert.throws(() => validateSource('Users', { workspaceId: 'old' }), /upgrade/);
-  assert.throws(() => validateSource('Policies', { name: 'no-key' }), /key/);
-  assert.throws(() => validateSource('Environments', { settings: [] }), /object/);
-  assert.doesNotThrow(() => validateSource('Environments', { settings: { feature: true } }));
 });

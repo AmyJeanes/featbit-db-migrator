@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { withoutSeedData } from '../scripts/init-pg.js';
+import { withoutSeedData } from '../scripts/init-postgres.js';
 
 test('exclude the seed section while retaining all base DDL', () => {
   const ddl = 'create database featbit;\n\\connect featbit\nCREATE TABLE users (id uuid);\n';

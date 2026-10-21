@@ -63,7 +63,7 @@ The command prints its output directory under `exports/`. To select a directory 
 npm run export -- ./exports/customer-rehearsal
 ```
 
-Each run requires a new output directory. Collections are read in batches of 500. An error exits with a nonzero status; partial exports have no usable `manifest.json` and must not be imported. Source version checks detect selected legacy fields, but are not a substitute for confirming that all upstream upgrades ran.
+Each run requires a new output directory. Collections are read in batches of 500. An error exits with a nonzero status; partial exports have no usable `manifest.json` and must not be imported. Confirm that all source database upgrades through FeatBit 5.4.10 have completed before exporting.
 
 The source database must contain `Workspaces`, `Users` and `WorkspaceUsers`; a missing collection blocks export.
 

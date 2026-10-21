@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { MongoClient } from 'mongodb';
 import { Client } from 'pg';
-import { Migrator } from '../src/migrator.js';
+import { MongoDbExporter } from '../src/mongodb-exporter.js';
 
 const mongoUri = process.env.MONGODB_CONNECTION_STRING;
 const pgUri = process.env.POSTGRES_CONNECTION_STRING;
@@ -14,7 +14,7 @@ if (!mongoUri || !pgUri) {
   try {
     await mongo.connect();
     await pg.connect();
-    await new Migrator(mongo, pg, { outputDir: process.argv[2] }).generate_csv();
+    await new MongoDbExporter(mongo, pg, { outputDir: process.argv[2] }).generate_csv();
   } catch (error) {
     console.error('Migration export failed:', error);
     process.exitCode = 1;

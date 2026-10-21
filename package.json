@@ -2,14 +2,14 @@
   "name": "featbit-mongo-to-pg",
   "version": "5.4.10",
   "description": "A NodeJS script to migrate data from MongoDb to PostgreSQL for **FeatBit v5.4.10**",
-  "main": "scripts/export.js",
+  "main": "scripts/export-mongodb.js",
   "scripts": {
-    "start": "node scripts/export.js",
-    "export": "node scripts/export.js",
-    "generate:import": "node scripts/generate-import-script.js",
+    "start": "node scripts/export-mongodb.js",
+    "export": "node scripts/export-mongodb.js",
+    "generate:import": "node scripts/generate-postgres-import.js",
     "test:unit": "node --test tests/*.test.js",
-    "test:integration": "node tests/integration.js",
-    "init:pg": "node scripts/init-pg.js"
+    "test:integration": "node tests/migration.integration.js",
+    "init:pg": "node scripts/init-postgres.js"
   },
   "keywords": [],
   "author": "",

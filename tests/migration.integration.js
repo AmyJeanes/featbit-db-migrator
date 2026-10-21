@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MongoClient, UUID, ObjectId } from 'mongodb';
 import { Client } from 'pg';
-import { TABLE_MAPPING } from '../src/tables.js';
+import { TABLE_MAPPING } from '../src/collection-table-mapping.js';
 import { Converter } from '../src/converters/converter.js';
-import { Migrator } from '../src/migrator.js';
-import { fileHash } from '../src/integrity.js';
-import { generateScripts } from '../scripts/generate-import-script.js';
-import { initializeDatabase } from '../scripts/init-pg.js';
+import { MongoDbExporter } from '../src/mongodb-exporter.js';
+import { fileHash } from '../src/file-checksum.js';
+import { generateScripts } from '../scripts/generate-postgres-import.js';
+import { initializeDatabase } from '../scripts/init-postgres.js';
 
 const docker = (...args) => execFileSync('docker', args, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 const prefix = `featbit-migrator-${process.pid}`;
@@ -49,7 +49,7 @@ try {
   for (const table of ['workspaces', 'users', 'organizations', 'policies', 'workspace_users']) {
     assert.equal((await pg.query(`SELECT count(*)::int n FROM ${table}`)).rows[0].n, 0, 'Initialization must not seed ' + table);
   }
-  await assert.rejects(new Migrator(mongo, pg, { outputDir: join(temp, 'empty-source') }).generate_csv(), /Missing source collection/);
+  await assert.rejects(new MongoDbExporter(mongo, pg, { outputDir: join(temp, 'empty-source') }).generate_csv(), /Missing source collection/);
   for (const mapping of TABLE_MAPPING) {
     const [collection, table] = Object.entries(mapping)[0];
     const converter = Converter.getConverter(collection);
@@ -90,7 +90,7 @@ try {
     await mongo.db().collection(collection).updateMany({}, { $set: { envId: new UUID(ids[0]) } });
   }
   const outputDir = join(temp, 'export');
-  await new Migrator(mongo, pg, { outputDir, batchSize: 1 }).generate_csv();
+  await new MongoDbExporter(mongo, pg, { outputDir, batchSize: 1 }).generate_csv();
   const sqlPath = await generateScripts(outputDir);
   const containerDir = '/tmp/featbit-export';
   const containerSqlPath = `${containerDir}/scripts-to-run.sql`;
@@ -145,15 +145,15 @@ try {
   assert.deepEqual((await pg.query('SELECT settings FROM environments WHERE id=$1', [ids[0]])).rows[0].settings, { preserved: '中文|"\\\r\n', nested: { value: 0 } });
   assert.equal((await pg.query('SELECT flag FROM flag_revisions WHERE id=$1', [ids[0]])).rows[0].flag.id, ids[0]);
   assert.equal((await pg.query('SELECT rules FROM feature_flags WHERE id=$1', [ids[0]])).rows[0].rules[0].id, ids[0]);
-  await assert.rejects(new Migrator(mongo, pg, { outputDir: join(temp, 'retry') }).generate_csv(), /not empty/);
+  await assert.rejects(new MongoDbExporter(mongo, pg, { outputDir: join(temp, 'retry') }).generate_csv(), /not empty/);
   assert.throws(() => docker('exec', pgName, 'psql', '-U', 'postgres', '-d', 'featbit', '-f', containerSqlPath), /Command failed/);
   await assert.rejects(generateScripts(join(temp, 'missing')), /ENOENT/);
-  // A failed source validation must leave no usable manifest.
+  // A failed conversion must leave no usable manifest.
   for (const m of TABLE_MAPPING) await pg.query(`TRUNCATE ${Object.values(m)[0]}`);
-  await assert.rejects(new Migrator(mongo, pg, { outputDir }).generate_csv(), /EEXIST/);
-  await mongo.db().collection('Users').updateOne({}, { $set: { workspaceId: new UUID(ids[0]) } });
+  await assert.rejects(new MongoDbExporter(mongo, pg, { outputDir }).generate_csv(), /EEXIST/);
+  await mongo.db().collection('Segments').updateOne({}, { $set: { tags: 'invalid-array' } });
   const failedDir = join(temp, 'failed');
-  await assert.rejects(new Migrator(mongo, pg, { outputDir: failedDir }).generate_csv(), /Legacy/);
+  await assert.rejects(new MongoDbExporter(mongo, pg, { outputDir: failedDir }).generate_csv(), /Expected a PostgreSQL array/);
   await assert.rejects(readFile(join(failedDir, 'manifest.json')), /ENOENT/);
   console.log('Integration passed: 29 table mappings, 58 rows, BSON/JSON/array round trips, memberships, composite keys and failure guards.');
 } finally {

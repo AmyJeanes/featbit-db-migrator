@@ -1,8 +1,8 @@
-import { fileHash } from '../src/integrity.js';
+import { fileHash } from '../src/file-checksum.js';
 import { readFile, writeFile, access } from 'node:fs/promises';
 import { resolve, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TABLE_MAPPING } from '../src/tables.js';
+import { TABLE_MAPPING } from '../src/collection-table-mapping.js';
 import { Converter } from '../src/converters/converter.js';
 
 export async function generateScripts(directory) {
@@ -44,6 +44,6 @@ END $$;`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (!process.argv[2]) throw new Error('Usage: node scripts/generate-import-script.js <export-directory>');
+  if (!process.argv[2]) throw new Error('Usage: node scripts/generate-postgres-import.js <export-directory>');
   console.log(await generateScripts(process.argv[2]));
 }

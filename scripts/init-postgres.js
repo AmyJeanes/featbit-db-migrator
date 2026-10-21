@@ -71,7 +71,7 @@ export async function initializeDatabase({ checkout, connectionString, execute }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    if (process.argv.length > 3) throw new Error('Usage: node scripts/init-pg.js [featbit-5.4.10-checkout]');
+    if (process.argv.length > 3) throw new Error('Usage: node scripts/init-postgres.js [featbit-5.4.10-checkout]');
     await initializeDatabase({ checkout: process.argv[2], connectionString: process.env.POSTGRES_ADMIN_CONNECTION_STRING });
   } catch (error) {
     console.error('PostgreSQL initialization failed:', error.message);
