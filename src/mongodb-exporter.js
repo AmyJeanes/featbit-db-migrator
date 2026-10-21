@@ -6,17 +6,25 @@ import { Converter } from './converters/converter.js';
 import { normalizeBson } from './mongodb-document.js';
 
 export class MongoDbExporter {
-  constructor(mongodb, postgres, { outputDir, batchSize = 500 } = {}) {
+  constructor(mongodb, postgres, { outputDir, batchSize = 500, endUsersLimit = 10000 } = {}) {
     this.mongodb = mongodb.db();
     this.postgres = postgres;
     this.outputDir = resolve(outputDir ?? join('exports', new Date().toISOString().replace(/[:.]/g, '-') + '-' + process.pid));
     this.batchSize = batchSize;
+    if (!Number.isSafeInteger(endUsersLimit) || endUsersLimit < 0) {
+      throw new Error('END_USERS_AUTO_MIGRATION_LIMIT must be a nonnegative safe integer');
+    }
+    this.endUsersLimit = endUsersLimit;
   }
 
   async generate_csv() {
     const collections = new Set((await this.mongodb.listCollections({}, { nameOnly: true }).toArray()).map(c => c.name));
     for (const required of ['Workspaces', 'Users', 'WorkspaceUsers']) {
       if (!collections.has(required)) throw new Error(`Missing source collection ${required}; verify database selection and completed upgrades`);
+    }
+    const endUsersCount = await this.mongodb.collection('EndUsers').countDocuments();
+    if (endUsersCount > this.endUsersLimit) {
+      throw new Error(`EndUsers has ${endUsersCount} records, exceeding END_USERS_AUTO_MIGRATION_LIMIT=${this.endUsersLimit}; assess migration size and time before increasing the limit`);
     }
     await this.postgres.query('SET search_path TO public');
     // Reject populated targets, including tables intentionally excluded from migration.

@@ -14,7 +14,7 @@ if (!mongoUri || !pgUri) {
   try {
     await mongo.connect();
     await pg.connect();
-    await new MongoDbExporter(mongo, pg, { outputDir: process.argv[2] }).generate_csv();
+    await new MongoDbExporter(mongo, pg, { outputDir: process.argv[2], endUsersLimit: process.env.END_USERS_AUTO_MIGRATION_LIMIT === undefined ? 10000 : Number(process.env.END_USERS_AUTO_MIGRATION_LIMIT) }).generate_csv();
   } catch (error) {
     console.error('Migration export failed:', error);
     process.exitCode = 1;

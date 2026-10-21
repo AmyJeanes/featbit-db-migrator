@@ -76,6 +76,7 @@ try {
           }
         }
       }
+      if (collection === 'EndUsers') doc.customizedProperties = i ? [] : [{ name: 'company', value: '中文|\"\\\r\n' }];
       if (collection === 'FlagRevisions') doc.flag = { _id: new UUID(id), key: 'flag-key', variations: [{ _id: 'variation-1', value: true }] };
       if (collection === 'WebhookDeliveries') doc.error = i ? null : { message: 'error|\"\\\r\n' };
       if (collection === 'Users') { doc.password = `password-hash-${i}`; doc.initialPassword = i ? '' : 'initial|"\\\r\n'; }
@@ -89,8 +90,11 @@ try {
   for (const collection of ['UsageEndUserStats', 'UsageEventStats']) {
     await mongo.db().collection(collection).updateMany({}, { $set: { envId: new UUID(ids[0]) } });
   }
+  const limitedDir = join(temp, 'over-limit');
+  await assert.rejects(new MongoDbExporter(mongo, pg, { outputDir: limitedDir, endUsersLimit: 1 }).generate_csv(), /exceeding END_USERS_AUTO_MIGRATION_LIMIT/);
+  await assert.rejects(readFile(join(limitedDir, '.started')), /ENOENT/);
   const outputDir = join(temp, 'export');
-  await new MongoDbExporter(mongo, pg, { outputDir, batchSize: 1 }).generate_csv();
+  await new MongoDbExporter(mongo, pg, { outputDir, batchSize: 1, endUsersLimit: 2 }).generate_csv();
   const sqlPath = await generateScripts(outputDir);
   const containerDir = '/tmp/featbit-export';
   const containerSqlPath = `${containerDir}/scripts-to-run.sql`;
@@ -135,6 +139,7 @@ try {
     assert.equal((await pg.query(`SELECT count(*)::int AS count FROM ${table}`)).rows[0].count, 2, table);
     if (!table.startsWith('usage_')) assert.deepEqual((await pg.query(`SELECT id FROM ${table} ORDER BY id`)).rows.map(r => r.id), [...ids].sort(), table + ' IDs');
   }
+  assert.deepEqual((await pg.query('SELECT customized_properties FROM end_users WHERE id=$1', [ids[0]])).rows[0].customized_properties, [{ name: 'company', value: '中文|\"\\\r\n' }]);
   const users = (await pg.query('SELECT * FROM users ORDER BY email')).rows;
   assert.equal(users[0].password, 'password-hash-0');
   assert.equal(users[0].initial_password, 'initial|"\\\r\n');
@@ -155,7 +160,7 @@ try {
   const failedDir = join(temp, 'failed');
   await assert.rejects(new MongoDbExporter(mongo, pg, { outputDir: failedDir }).generate_csv(), /Expected a PostgreSQL array/);
   await assert.rejects(readFile(join(failedDir, 'manifest.json')), /ENOENT/);
-  console.log('Integration passed: 29 table mappings, 58 rows, BSON/JSON/array round trips, memberships, composite keys and failure guards.');
+  console.log('Integration passed: 30 table mappings, 60 rows, BSON/JSON/array round trips, memberships, composite keys and failure guards.');
 } finally {
   await Promise.allSettled([pg?.end(), mongo?.close()]);
   for (const name of [pgName, mongoName]) { try { docker('rm', '-f', name); } catch {} }

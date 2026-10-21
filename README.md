@@ -6,22 +6,21 @@ The export preserves IDs, password hashes, workspace memberships, policy/segment
 
 ## Scope
 
-29 collections are migrated.
+30 collections are migrated, including EndUsers. Export stops if EndUsers exceeds `END_USERS_AUTO_MIGRATION_LIMIT` (default: 10,000 records). Assess data size and migration time before increasing this value in `.env`; EndUsers is never silently skipped.
 
 Excluded:
 
-- `EndUsers`: end-user records. `EndUserProperties` metadata is included.
-- `Events`: raw events and analytics history; assess analytics storage separately.
+- `Events`: excluded because the table can contain a large volume of data. If historical events are required, plan a separate migration with an appropriate scope, such as only the most recent month. Upgrading to FeatBit 6.0 also does not migrate historical Events data; see [Historical data in the v6 upgrade guide](https://docs.featbit.co/installation/upgrade/upgrade-to-v6#historical-data).
 - `RefreshTokens`: users must log in again after cutover. Existing JWT validity also depends on signing keys and expiry.
-- `QueueMessages`: transient work; drain pending processing before the final snapshot.
+- `QueueMessages`: PostgreSQL message-queue storage. MongoDB deployments use Redis for their message queue, so there is no corresponding MongoDB collection to migrate.
 
-If these exclusions do not meet the customer's requirements, resolve their separate migration plan before cutover.
+If excluded historical event data is required, agree on a separate migration plan before cutover.
 
 ## Prerequisites
 
 - Node.js >= 20.19.0 and `npm`.
-- Git, `psql`, PostgreSQL 15 (integration-tested), and permission to create the database and `pg_trgm` extension.
-- A consistent MongoDB backup/snapshot whose FeatBit upgrades through 5.4.10 have completed, including the 5.4.0 user/workspace migration.
+- Git, `psql`, PostgreSQL, and permission to create the database and `pg_trgm` extension.
+- A consistent MongoDB backup/snapshot whose FeatBit upgrades through 5.4.10 have completed.
 - A fresh PostgreSQL instance/database with no default FeatBit account or seeded business data.
 
 ## 1. Initialize PostgreSQL
@@ -65,8 +64,6 @@ npm run export -- ./exports/customer-rehearsal
 
 Each run requires a new output directory. Collections are read in batches of 500. An error exits with a nonzero status; partial exports have no usable `manifest.json` and must not be imported. Confirm that all source database upgrades through FeatBit 5.4.10 have completed before exporting.
 
-The source database must contain `Workspaces`, `Users` and `WorkspaceUsers`; a missing collection blocks export.
-
 The completed manifest lists table columns, row counts and SHA-256 file hashes. Keep the export intact and protect it as customer data: it contains password hashes, tokens and configuration secrets.
 
 ## 3. Generate and execute import
@@ -86,8 +83,6 @@ Script generation checks CSV hashes and manifest completeness. Import specifies 
 
 A successful import is only one acceptance criterion. Validate login/passwords, workspace and organization membership, permissions, environment secrets/settings, representative SDK evaluations, experiments and integrations against the source deployment.
 
-Formal release requires customer-copy rehearsal and application acceptance. Synthetic tests do not replace those checks.
-
 ## Development validation
 
 ```bash
@@ -95,7 +90,7 @@ npm run test:unit
 npm run test:integration
 ```
 
-The integration test requires Docker. It starts isolated `mongo:5.0.32` and `postgres:15.10` containers on random loopback ports and removes them afterward. It never uses the connection strings in `.env`. It initializes the official schema, checks every mapped column, exports/imports 58 synthetic records across 29 collections, checks critical round trips, and exercises failure guards.
+The integration test requires Docker. It starts isolated `mongo:5.0.32` and `postgres:15.10` containers on random loopback ports and removes them afterward. It never uses the connection strings in `.env`. It initializes the official schema, checks every mapped column, exports/imports 60 synthetic records across 30 collections, checks critical round trips, and exercises failure guards.
 
 No test can establish compatibility with all customer data or external analytics stores. Record actual rehearsal duration, storage requirements and acceptance results before scheduling the production window.
 
