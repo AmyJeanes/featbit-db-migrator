@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { TABLE_MAPPING } from '../src/collection-table-mapping.js';
 import { Converter } from '../src/converters/converter.js';
 
-export async function generateScripts(directory) {
+export async function generateScripts(directory = fileURLToPath(new URL('../csvs/', import.meta.url))) {
   const dir = resolve(directory);
   const manifest = JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8'));
   if (manifest.version !== '5.4.10' || manifest.tables.length !== TABLE_MAPPING.length) throw new Error('Invalid or incomplete export manifest');
@@ -44,6 +44,6 @@ END $$;`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (!process.argv[2]) throw new Error('Usage: node scripts/generate-postgres-import.js <export-directory>');
-  console.log(await generateScripts(process.argv[2]));
+  if (process.argv.length > 2) throw new Error('Usage: npm run generate-import-sql');
+  console.log(await generateScripts());
 }

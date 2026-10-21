@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile, appendFile, rm } from 'node:fs/promises';
-import { resolve, join, dirname } from 'node:path';
+import { resolve, join, dirname, relative, isAbsolute } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { TABLE_MAPPING } from './collection-table-mapping.js';
 import { Converter } from './converters/converter.js';
 import { normalizeBson } from './mongodb-document.js';
@@ -9,7 +11,7 @@ export class MongoDbExporter {
   constructor(mongodb, postgres, { outputDir, batchSize = 500, endUsersLimit = 10000 } = {}) {
     this.mongodb = mongodb.db();
     this.postgres = postgres;
-    this.outputDir = resolve(outputDir ?? join('exports', new Date().toISOString().replace(/[:.]/g, '-') + '-' + process.pid));
+    this.outputDir = resolve(outputDir ?? fileURLToPath(new URL('../csvs/', import.meta.url)));
     this.batchSize = batchSize;
     if (!Number.isSafeInteger(endUsersLimit) || endUsersLimit < 0) {
       throw new Error('END_USERS_AUTO_MIGRATION_LIMIT must be a nonnegative safe integer');
@@ -34,16 +36,26 @@ export class MongoDbExporter {
       const result = await this.postgres.query(`SELECT 1 FROM ${quoted} LIMIT 1`);
       if (result.rowCount) throw new Error(`Target table ${tablename} is not empty; use a fresh initialized database`);
     }
+    for (const mapping of TABLE_MAPPING) {
+      const [collection, table] = Object.entries(mapping)[0];
+      const converter = Converter.getConverter(collection);
+      await this.postgres.query(`SELECT ${converter.pgColumns.join(',')} FROM ${table} LIMIT 0`);
+    }
+    // Only replace an export directory inside this project or the test temporary directory.
+    const roots = [fileURLToPath(new URL('../', import.meta.url)), tmpdir()];
+    if (!roots.some(root => {
+      const path = relative(resolve(root), this.outputDir);
+      return path && path !== '..' && !path.startsWith('..' + (process.platform === 'win32' ? '\\' : '/')) && !isAbsolute(path);
+    })) throw new Error('Export directory must be inside the project or temporary directory');
+    await rm(this.outputDir, { recursive: true, force: true });
     await mkdir(dirname(this.outputDir), { recursive: true });
     await mkdir(this.outputDir);
-    // Mark interrupted runs; exclusive directory creation prevents reuse.
+    // Mark interrupted runs; only completed exports receive a manifest.
     await writeFile(join(this.outputDir, '.started'), '', { flag: 'wx' });
     const manifest = { version: '5.4.10', createdAt: new Date().toISOString(), tables: [] };
     for (const [index, mapping] of TABLE_MAPPING.entries()) {
       const [collection, table] = Object.entries(mapping)[0];
       const converter = Converter.getConverter(collection);
-      // Fail before exporting if the target schema is incompatible.
-      await this.postgres.query(`SELECT ${converter.pgColumns.join(',')} FROM ${table} LIMIT 0`);
       const file = `${index}_${table}.csv`;
       const path = join(this.outputDir, file);
       await writeFile(path, '', { flag: 'wx' });

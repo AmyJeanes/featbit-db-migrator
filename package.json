@@ -5,11 +5,12 @@
   "main": "scripts/export-mongodb.js",
   "scripts": {
     "start": "node scripts/export-mongodb.js",
-    "export": "node scripts/export-mongodb.js",
-    "generate:import": "node scripts/generate-postgres-import.js",
+    "export-from-mongodb": "node scripts/export-mongodb.js",
+    "import-into-postgres": "node scripts/import-postgres.js",
+    "generate-import-sql": "node scripts/generate-postgres-import.js",
     "test:unit": "node --test tests/*.test.js",
     "test:integration": "node tests/migration.integration.js",
-    "init:pg": "node scripts/init-postgres.js"
+    "init-postgres": "node scripts/init-postgres.js"
   },
   "keywords": [],
   "author": "",

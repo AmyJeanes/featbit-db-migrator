@@ -155,7 +155,10 @@ try {
   await assert.rejects(generateScripts(join(temp, 'missing')), /ENOENT/);
   // A failed conversion must leave no usable manifest.
   for (const m of TABLE_MAPPING) await pg.query(`TRUNCATE ${Object.values(m)[0]}`);
-  await assert.rejects(new MongoDbExporter(mongo, pg, { outputDir }).generate_csv(), /EEXIST/);
+  await writeFile(join(outputDir, 'stale.csv'), 'old export');
+  await new MongoDbExporter(mongo, pg, { outputDir }).generate_csv();
+  await assert.rejects(readFile(join(outputDir, 'stale.csv')), /ENOENT/);
+  assert.equal(JSON.parse(await readFile(join(outputDir, 'manifest.json'), 'utf8')).tables.length, 30);
   await mongo.db().collection('Segments').updateOne({}, { $set: { tags: 'invalid-array' } });
   const failedDir = join(temp, 'failed');
   await assert.rejects(new MongoDbExporter(mongo, pg, { outputDir: failedDir }).generate_csv(), /Expected a PostgreSQL array/);
