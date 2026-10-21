@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, rm, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const UPSTREAM_COMMIT = '100d585e481fca3413468cbc6a9c70eb5246cc60';
@@ -53,14 +53,14 @@ export async function initializeDatabase({ checkout, connectionString, execute }
     // Validate/download every script and the seed boundary before touching PostgreSQL.
     const files = await prepareScripts(checkout, temporary);
     for (const file of files) {
-      console.log(`Executing ${file.split('/').at(-1)}...`);
+      console.log(`Executing ${basename(file)}...`);
       if (execute) await execute(file);
       else {
         const result = spawnSync('psql', ['-X', '--set', 'ON_ERROR_STOP=1', '--file', file], {
           stdio: 'inherit', env: { ...process.env, PGDATABASE: connectionString }
         });
         if (result.error) throw result.error;
-        if (result.status !== 0) throw new Error(`psql failed for ${file.split('/').at(-1)} (exit ${result.status}); no subsequent scripts were run`);
+        if (result.status !== 0) throw new Error(`psql failed for ${basename(file)} (exit ${result.status}); no subsequent scripts were run`);
       }
     }
     console.log('PostgreSQL initialization complete. Import data only after this step.');
