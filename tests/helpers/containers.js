@@ -24,7 +24,7 @@ export class MigrationContainers {
     let ready = false;
     for (let i = 0; i < 60; i++) {
       try {
-        docker('exec', this.pgName, 'pg_isready', '-U', 'postgres');
+        docker('exec', this.pgName, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres');
         ready = true;
         break;
       } catch { await new Promise(resolve => setTimeout(resolve, 250)); }
