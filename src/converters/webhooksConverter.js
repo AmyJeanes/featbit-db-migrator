@@ -18,10 +18,17 @@ export class WebhooksConverter extends ConverterBase {
                     case 'events':
                     case 'scopes':
                         return this.toStringArrayValue(value);
+                    case 'headers':
+                        return this.toStringValue(this.toHeaders(value));
                     default:
                         return this.toStringValue(value);
                 }
             }).join(this.DELIMITER);
         }).join('\n');
+    }
+
+    // MongoDB stores KeyValuePair<string, string> as { k, v }; FeatBit on PostgreSQL reads { key, value }
+    toHeaders(headers) {
+        return headers?.map(h => ({ key: h.k ?? h.key, value: h.v ?? h.value }));
     }
 }

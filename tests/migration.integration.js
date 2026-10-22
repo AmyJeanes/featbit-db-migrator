@@ -99,6 +99,7 @@ describe('MongoDB to PostgreSQL migration', { concurrency: false }, () => {
       assert.equal(users[0].password, 'password-hash-0');
       assert.equal(users[0].initial_password, 'initial|"\\\r\n');
       assert.equal(users[1].initial_password, '');
+      assert.deepEqual((await pg.query('SELECT headers FROM webhooks WHERE id=$1', [ids[0]])).rows[0].headers, [{ key: 'X-Api-Key', value: 'value|\"\\\r\n' }]);
       assert.deepEqual((await pg.query('SELECT error FROM webhook_deliveries WHERE id=$1', [ids[0]])).rows[0].error, { message: 'error|\"\\\r\n' });
       assert.equal((await pg.query('SELECT count(*)::int n FROM workspace_users w JOIN users u ON u.id=w.user_id JOIN workspaces s ON s.id=w.workspace_id')).rows[0].n, 2);
       assert.deepEqual((await pg.query('SELECT tags FROM segments WHERE id=$1', [ids[0]])).rows[0].tags, array);

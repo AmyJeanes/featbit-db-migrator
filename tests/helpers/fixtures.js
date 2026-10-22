@@ -75,6 +75,7 @@ export async function seedSource(mongo, pg) {
       }
       if (collection === 'EndUsers') doc.customizedProperties = i ? [] : [{ name: 'company', value: '中文|\"\\\r\n' }];
       if (collection === 'FlagRevisions') doc.flag = { _id: new UUID(id), key: 'flag-key', variations: [{ _id: 'variation-1', value: true }] };
+      if (collection === 'Webhooks') doc.headers = i ? null : [{ k: 'X-Api-Key', v: 'value|\"\\\r\n' }];
       if (collection === 'WebhookDeliveries') doc.error = i ? null : { message: 'error|\"\\\r\n' };
       if (collection === 'Users') { doc.password = `password-hash-${i}`; doc.initialPassword = i ? '' : 'initial|"\\\r\n'; }
       if (collection === 'UsageEndUserStats') { doc._id = new ObjectId(); doc.yearMonth = 202610; doc.userKey = `user-${i}`; }
