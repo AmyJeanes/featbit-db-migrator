@@ -8,8 +8,8 @@ export async function importDatabase(directory, connectionString) {
   if (!directory) throw new Error('Export directory is required');
   if (!connectionString) throw new Error('POSTGRES_CONNECTION_STRING is required in .env');
   const sqlPath = await generateScripts(directory);
-  const result = spawnSync('psql', ['-X', '--set', 'ON_ERROR_STOP=1', '--file', sqlPath], {
-    stdio: 'inherit', env: { ...process.env, PGDATABASE: connectionString }
+  const result = spawnSync('psql', ['-X', '--set', 'ON_ERROR_STOP=1', '--dbname', connectionString, '--file', sqlPath], {
+    stdio: 'inherit'
   });
   if (result.error?.code === 'ENOENT') throw new Error('psql is required; install the PostgreSQL client tools and add them to PATH');
   if (result.error) throw result.error;

@@ -56,8 +56,8 @@ export async function initializeDatabase({ checkout, connectionString, execute }
       console.log(`Executing ${basename(file)}...`);
       if (execute) await execute(file);
       else {
-        const result = spawnSync('psql', ['-X', '--set', 'ON_ERROR_STOP=1', '--file', file], {
-          stdio: 'inherit', env: { ...process.env, PGDATABASE: connectionString }
+        const result = spawnSync('psql', ['-X', '--set', 'ON_ERROR_STOP=1', '--dbname', connectionString, '--file', file], {
+          stdio: 'inherit'
         });
         if (result.error) throw result.error;
         if (result.status !== 0) throw new Error(`psql failed for ${basename(file)} (exit ${result.status}); no subsequent scripts were run`);
